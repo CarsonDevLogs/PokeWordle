@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pokéwordle</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--correct:#4CAF50;--present:#FF9800;--absent:#607D8B;--bg:#1a1a2e;--surface:#16213e;--card:#0f3460;--text:#e0e0e0;--text-dim:#90a4ae;--border:#1e3a5f;--tile-bg:#0f3460;--tile-border:#2a4a7f;--key-bg:#1e3a5f;--key-text:#e0e0e0;--accent:#e94560;--gold:#ffd700;--hard:#a855f7;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;overflow-x:hidden;}
+body::before{content:'';position:fixed;top:-200px;right:-200px;width:500px;height:500px;border-radius:50%;border:80px solid rgba(233,69,96,0.06);pointer-events:none;z-index:0;}
+body::after{content:'';position:fixed;bottom:-150px;left:-150px;width:400px;height:400px;border-radius:50%;border:60px solid rgba(255,215,0,0.05);pointer-events:none;z-index:0;}
+
+/* AUTH */
+#auth-screen{position:fixed;inset:0;background:var(--bg);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;}
+#auth-screen.hidden{display:none;}
+.auth-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:36px 32px 28px;width:100%;max-width:380px;animation:slideUp .35s cubic-bezier(.175,.885,.32,1.275);}
+.auth-logo{font-family:'Press Start 2P',monospace;font-size:clamp(11px,3.5vw,16px);color:var(--gold);text-shadow:2px 2px 0 var(--accent);text-align:center;margin-bottom:6px;}
+.auth-sub{font-size:10px;color:var(--text-dim);text-align:center;letter-spacing:2px;text-transform:uppercase;margin-bottom:24px;}
+.auth-tabs{display:flex;gap:4px;background:var(--card);border-radius:8px;padding:4px;margin-bottom:22px;}
+.auth-tab{flex:1;padding:8px;border:none;background:transparent;color:var(--text-dim);font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border-radius:6px;transition:background .15s,color .15s;}
+.auth-tab.active{background:var(--accent);color:#fff;}
+.auth-field{margin-bottom:14px;}
+.auth-field label{display:block;font-size:11px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;}
+.auth-field input{width:100%;padding:10px 14px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;font-family:'Inter',sans-serif;outline:none;transition:border-color .15s;}
+.auth-field input:focus{border-color:var(--gold);}
+.auth-err{font-size:11px;color:var(--accent);min-height:16px;margin-bottom:10px;text-align:center;}
+.auth-btn{width:100%;padding:12px;background:linear-gradient(135deg,var(--accent),#c0392b);color:#fff;border:none;border-radius:8px;font-family:'Press Start 2P',monospace;font-size:9px;cursor:pointer;letter-spacing:.5px;transition:transform .08s;}
+.auth-btn:active{transform:scale(.97);}
+.auth-divider{display:flex;align-items:center;gap:10px;margin:16px 0 12px;color:var(--text-dim);font-size:11px;}
+.auth-divider::before,.auth-divider::after{content:'';flex:1;height:1px;background:var(--border);}
+.auth-guest{display:block;text-align:center;width:100%;padding:10px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text-dim);font-size:12px;cursor:pointer;transition:color .15s,border-color .15s;}
+.auth-guest:hover{color:var(--text);border-color:var(--text-dim);}
+
+/* HEADER */
+header{width:100%;max-width:640px;padding:20px 20px 12px;text-align:center;position:relative;z-index:1;}
+.logo{font-family:'Press Start 2P',monospace;font-size:clamp(13px,3.5vw,20px);color:var(--gold);text-shadow:3px 3px 0 var(--accent),6px 6px 0 rgba(233,69,96,.3);letter-spacing:1px;margin-bottom:6px;}
+.subtitle{font-size:11px;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase;}
+.divider{width:100%;height:1px;background:linear-gradient(90deg,transparent,var(--accent),var(--gold),var(--accent),transparent);margin:12px 0;opacity:.5;}
+.header-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 0 8px;flex-wrap:wrap;}
+.user-pill{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:5px 12px 5px 7px;}
+.user-avatar{width:24px;height:24px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;text-transform:uppercase;flex-shrink:0;}
+.user-name{font-size:12px;font-weight:600;color:var(--text);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.logout-btn{background:none;border:none;color:var(--text-dim);font-size:10px;cursor:pointer;padding:3px 7px;border-radius:6px;transition:color .15s;}
+.logout-btn:hover{color:var(--accent);}
+.controls{display:flex;align-items:center;gap:8px;}
+.hard-toggle{display:flex;align-items:center;gap:7px;cursor:pointer;padding:5px 12px;background:var(--card);border:1px solid var(--border);border-radius:20px;font-size:11px;color:var(--text-dim);transition:border-color .2s,color .2s;user-select:none;}
+.hard-toggle.on{border-color:var(--hard);color:var(--hard);background:rgba(168,85,247,.1);}
+.tdot{width:28px;height:16px;border-radius:8px;background:var(--border);position:relative;transition:background .2s;flex-shrink:0;}
+.tdot::after{content:'';position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#fff;transition:transform .2s;}
+.hard-toggle.on .tdot{background:var(--hard);}
+.hard-toggle.on .tdot::after{transform:translateX(12px);}
+.stats-row{display:flex;justify-content:center;gap:16px;font-size:10px;color:var(--text-dim);padding:4px 0 8px;flex-wrap:wrap;}
+.stat{text-align:center;}
+.stat-num{font-size:17px;font-weight:700;color:var(--gold);display:block;}
+
+/* MAIN */
+main{width:100%;max-width:640px;padding:0 12px;position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:13px;}
+#message{min-height:28px;font-family:'Press Start 2P',monospace;font-size:8px;line-height:1.8;text-align:center;color:var(--gold);}
+.hard-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(168,85,247,.15);border:1px solid var(--hard);border-radius:20px;padding:3px 14px;font-size:10px;color:var(--hard);font-weight:700;letter-spacing:.5px;}
+.hard-badge.hidden{display:none;}
+
+/* BOARD */
+#board{display:flex;flex-direction:column;gap:6px;}
+.row{display:flex;gap:6px;}
+.tile{width:52px;height:52px;border:2px solid var(--tile-border);background:var(--tile-bg);border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:'Press Start 2P',monospace;font-size:clamp(8px,2.5vw,11px);color:var(--text);text-transform:uppercase;}
+.tile.filled{border-color:#4a6fa5;animation:pop .1s ease;}
+.tile.correct{background:var(--correct);border-color:var(--correct);color:#fff;}
+.tile.present{background:var(--present);border-color:var(--present);color:#fff;}
+.tile.absent{background:var(--absent);border-color:var(--absent);color:#fff;}
+.tile.hard-locked{border-color:var(--hard)!important;box-shadow:0 0 5px rgba(168,85,247,.4);}
+.tile.flip{animation:flip .5s ease forwards;}
+.tile.shake{animation:shake .5s ease;}
+.tile.win{animation:winPulse .6s ease forwards;}
+@keyframes pop{0%{transform:scale(1)}50%{transform:scale(1.12)}100%{transform:scale(1)}}
+@keyframes flip{0%{transform:rotateX(0)}50%{transform:rotateX(-90deg)}100%{transform:rotateX(0)}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+@keyframes winPulse{0%{transform:scale(1);box-shadow:0 0 0 0 rgba(255,215,0,.7)}50%{transform:scale(1.15);box-shadow:0 0 0 10px rgba(255,215,0,0)}100%{transform:scale(1)}}
+@keyframes slideUp{from{opacity:0;transform:translateY(40px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
+
+/* LEGEND */
+.legend{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;font-size:11px;color:var(--text-dim);}
+.legend-item{display:flex;align-items:center;gap:5px;}
+.ldot{width:13px;height:13px;border-radius:3px;}
+
+/* HINT */
+.hint-panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 18px;text-align:center;width:100%;max-width:440px;}
+.hint-label{font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px;}
+.hint-text{font-size:13px;color:var(--gold);font-weight:600;}
+
+/* HARD RULES */
+.hard-rules{background:rgba(168,85,247,.07);border:1px solid rgba(168,85,247,.25);border-radius:10px;padding:10px 16px;width:100%;max-width:440px;}
+.hard-rules.hidden{display:none;}
+.hard-rules-title{font-size:10px;color:var(--hard);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
+.hard-rule{font-size:11px;color:var(--text-dim);margin:3px 0;padding-left:14px;position:relative;line-height:1.5;}
+.hard-rule::before{content:'⚡';position:absolute;left:0;font-size:9px;}
+
+/* KEYBOARD */
+#keyboard{display:flex;flex-direction:column;gap:7px;align-items:center;width:100%;max-width:500px;}
+.key-row{display:flex;gap:5px;}
+.key{height:52px;min-width:36px;padding:0 8px;border-radius:6px;border:1px solid var(--border);background:var(--key-bg);color:var(--key-text);font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;text-transform:uppercase;transition:background .15s,transform .08s;user-select:none;-webkit-tap-highlight-color:transparent;}
+.key:active{transform:scale(.94);}
+.key.wide{min-width:58px;font-size:11px;}
+.key.correct{background:var(--correct);border-color:var(--correct);color:#fff;}
+.key.present{background:var(--present);border-color:var(--present);color:#fff;}
+.key.absent{background:#374151;border-color:#374151;color:#6b7280;}
+
+/* MODAL */
+#modal-overlay{display:none;position:fixed;inset:0;background:rgba(10,10,20,.88);z-index:100;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px);}
+#modal-overlay.show{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:30px 26px 22px;max-width:370px;width:100%;text-align:center;animation:slideUp .35s cubic-bezier(.175,.885,.32,1.275);}
+.modal-icon{font-size:44px;margin-bottom:10px;}
+.modal-title{font-family:'Press Start 2P',monospace;font-size:11px;color:var(--gold);margin-bottom:8px;line-height:1.6;}
+.modal-answer{font-family:'Press Start 2P',monospace;font-size:11px;color:var(--accent);margin:8px 0 4px;letter-spacing:1px;}
+.modal-desc{font-size:11px;color:var(--text-dim);margin-bottom:12px;line-height:1.6;}
+.mbadge{display:inline-block;padding:3px 12px;border-radius:20px;font-size:10px;font-weight:700;margin-bottom:14px;letter-spacing:.5px;}
+.mbadge.normal{background:rgba(76,175,80,.12);color:#4CAF50;border:1px solid rgba(76,175,80,.3);}
+.mbadge.hard{background:rgba(168,85,247,.15);color:var(--hard);border:1px solid rgba(168,85,247,.3);}
+.modal-stats{display:flex;justify-content:center;gap:16px;margin-bottom:18px;padding:12px;background:var(--card);border-radius:10px;}
+.ms{text-align:center;}
+.ms-num{font-size:20px;font-weight:700;color:var(--gold);display:block;}
+.ms-lbl{font-size:10px;color:var(--text-dim);}
+.btn{display:inline-block;padding:11px 26px;border-radius:8px;font-family:'Press Start 2P',monospace;font-size:9px;cursor:pointer;border:none;transition:transform .1s;letter-spacing:.5px;}
+.btn:active{transform:scale(.96);}
+.btn-primary{background:linear-gradient(135deg,var(--accent),#c0392b);color:#fff;}
+.btn-secondary{background:var(--card);color:var(--gold);border:1px solid var(--border);margin-top:8px;}
+footer{padding:16px;text-align:center;font-size:10px;color:var(--text-dim);z-index:1;opacity:.5;}
+@media(max-width:380px){.tile{width:44px;height:44px;font-size:9px;}.key{height:46px;min-width:30px;font-size:12px;}.key.wide{min-width:50px;}}
+</style>
+</head>
+<body>
+
+<!-- ══ AUTH SCREEN ══ -->
+<div id="auth-screen">
+  <div class="auth-box">
+    <div class="auth-logo">Pokéwordle</div>
+    <div class="auth-sub">Trainer Login</div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tab-login" onclick="switchTab('login')">Log In</button>
+      <button class="auth-tab" id="tab-signup" onclick="switchTab('signup')">Sign Up</button>
+    </div>
+
+    <div id="login-form">
+      <div class="auth-field"><label>Username</label><input type="text" id="li-user" placeholder="Trainer name" autocomplete="username"></div>
+      <div class="auth-field"><label>Password</label><input type="password" id="li-pass" placeholder="••••••••" autocomplete="current-password"></div>
+      <div class="auth-err" id="li-err"></div>
+      <button class="auth-btn" onclick="doLogin()">Start Playing →</button>
+    </div>
+
+    <div id="signup-form" style="display:none;">
+      <div class="auth-field"><label>Username</label><input type="text" id="su-user" placeholder="Choose a trainer name" autocomplete="username"></div>
+      <div class="auth-field"><label>Password</label><input type="password" id="su-pass" placeholder="At least 6 characters" autocomplete="new-password"></div>
+      <div class="auth-field"><label>Confirm Password</label><input type="password" id="su-pass2" placeholder="Repeat password" autocomplete="new-password"></div>
+      <div class="auth-err" id="su-err"></div>
+      <button class="auth-btn" onclick="doSignup()">Create Account →</button>
+    </div>
+
+    <div class="auth-divider">or</div>
+    <button class="auth-guest" onclick="guestPlay()">Continue as Guest (progress not saved)</button>
+  </div>
+</div>
+
+<!-- ══ HEADER ══ -->
+<header>
+  <div class="logo">Pokéwordle</div>
+  <div class="subtitle">Guess the Pokémon</div>
+  <div class="divider"></div>
+  <div class="header-bar">
+    <div class="user-pill">
+      <div class="user-avatar" id="user-avatar">?</div>
+      <span class="user-name" id="user-name">Guest</span>
+      <button class="logout-btn" onclick="doLogout()">log out</button>
+    </div>
+    <div class="controls">
+      <div class="hard-toggle" id="hard-toggle" onclick="toggleHard()" title="Hard Mode">
+        <div class="tdot"></div>
+        <span>Hard</span>
+      </div>
+    </div>
+  </div>
+  <div class="stats-row">
+    <div class="stat"><span class="stat-num" id="s-played">0</span>Played</div>
+    <div class="stat"><span class="stat-num" id="s-won">0</span>Won</div>
+    <div class="stat"><span class="stat-num" id="s-streak">0</span>Streak</div>
+    <div class="stat"><span class="stat-num" id="s-best">0</span>Best</div>
+    <div class="stat"><span class="stat-num" id="s-hard-won">0</span>⚡ Wins</div>
+  </div>
+</header>
+
+<main>
+  <div id="message"></div>
+  <div class="hard-badge hidden" id="hard-badge">⚡ HARD MODE ACTIVE</div>
+  <div id="board"></div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="ldot" style="background:var(--correct)"></div>Correct spot</div>
+    <div class="legend-item"><div class="ldot" style="background:var(--present)"></div>Wrong spot</div>
+    <div class="legend-item"><div class="ldot" style="background:var(--absent)"></div>Not in name</div>
+  </div>
+
+  <div class="hint-panel">
+    <div class="hint-label">Pokémon Hint</div>
+    <div class="hint-text" id="hint-text">—</div>
+  </div>
+
+  <div class="hard-rules hidden" id="hard-rules">
+    <div class="hard-rules-title">Hard Mode Rules</div>
+    <div class="hard-rule">Green letters must be reused in the same position.</div>
+    <div class="hard-rule">Yellow letters must appear somewhere in your next guess.</div>
+    <div class="hard-rule">Violations are blocked — every guess must honour past clues.</div>
+  </div>
+
+  <div id="keyboard"></div>
+</main>
+
+<footer>Pokémon © Nintendo / Game Freak · Fan game, not affiliated</footer>
+
+<!-- ══ END MODAL ══ -->
+<div id="modal-overlay">
+  <div class="modal">
+    <div class="modal-icon" id="modal-icon"></div>
+    <div class="modal-title" id="modal-title"></div>
+    <div class="modal-answer" id="modal-answer"></div>
+    <div class="modal-desc" id="modal-desc"></div>
+    <div class="mbadge" id="modal-badge"></div>
+    <div class="modal-stats">
+      <div class="ms"><span class="ms-num" id="ms-played">0</span><span class="ms-lbl">Played</span></div>
+      <div class="ms"><span class="ms-num" id="ms-pct">0%</span><span class="ms-lbl">Win %</span></div>
+      <div class="ms"><span class="ms-num" id="ms-streak">0</span><span class="ms-lbl">Streak</span></div>
+      <div class="ms"><span class="ms-num" id="ms-hard">0</span><span class="ms-lbl">⚡ Wins</span></div>
+    </div>
+    <button class="btn btn-primary" onclick="newGame()">⚡ New Pokémon</button><br>
+    <button class="btn btn-secondary" onclick="closeModal()">Keep viewing</button>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+//  POKÉMON POOL
+// ══════════════════════════════════════════════
+const RAW=[
+  {w:"EEVEE",h:"Evolution Pokémon · Normal type · 8 possible evolutions · #133"},
+  {w:"DITTO",h:"Transform Pokémon · Normal type · morphs into any Pokémon · #132"},
+  {w:"ZORUA",h:"Tricky Fox Pokémon · Dark type · disguises as other Pokémon · Gen 5 · #570"},
+  {w:"RALTS",h:"Feeling Pokémon · Psychic/Fairy type · evolves into Gardevoir · #280"},
+  {w:"RIOLU",h:"Emanation Pokémon · Fighting type · baby form of Lucario · #447"},
+  {w:"ABSOL",h:"Disaster Pokémon · Dark type · appears before catastrophes · #359"},
+  {w:"ARBOK",h:"Cobra Pokémon · Poison type · Ekans evolved · Jessie's partner · #024"},
+  {w:"NUMEL",h:"Numb Pokémon · Fire/Ground type · carries lava in hump · #322"},
+  {w:"TEPIG",h:"Fire Pig Pokémon · Fire type · Gen 5 starter · #498"},
+  {w:"SNIVY",h:"Grass Snake Pokémon · Grass type · Gen 5 starter · elegant · #495"},
+  {w:"MARILL",h:"Aqua Mouse Pokémon · Water/Fairy · tiny and round · #183"},
+  {w:"ESPEON",h:"Sun Pokémon · Psychic type · Eevee evolution · third-eye gem · #196"},
+  {w:"SLUGMA",h:"Lava Pokémon · Fire type · magma flows through its veins · #218"},
+  {w:"PHANPY",h:"Long Nose Pokémon · Ground type · elephant-like · #231"},
+  {w:"BAGON",h:"Rock Head Pokémon · Dragon type · dreams of flying · #371"},
+  {w:"BUDEW",h:"Bud Pokémon · Grass/Poison · baby Roselia · blooms in spring · #406"},
+  {w:"BURMY",h:"Bagworm Pokémon · Bug type · cloak changes with environment · #412"},
+  {w:"GIBLE",h:"Land Shark Pokémon · Dragon/Ground · baby Garchomp · #443"},
+  {w:"ROTOM",h:"Plasma Pokémon · Electric/Ghost · possesses household appliances · #479"},
+  {w:"UXIE",h:"Knowledge Pokémon · Psychic type · Lake Guardian trio · #480"},
+  {w:"AZELF",h:"Willpower Pokémon · Psychic type · Lake Guardian trio · #482"},
+  {w:"DEINO",h:"Irate Pokémon · Dark/Dragon · bites anything it touches · #633"},
+  {w:"GOOMY",h:"Soft Tissue Pokémon · Dragon type · weakest Dragon-type · #704"},
+  {w:"NOIBAT",h:"Sound Wave Pokémon · Flying/Dragon · uses echolocation · #714"},
+  {w:"ROWLET",h:"Grass Quill Pokémon · Grass/Flying · Gen 7 starter · #722"},
+  {w:"LITTEN",h:"Fire Cat Pokémon · Fire type · Gen 7 starter · independent · #725"},
+  {w:"MUDBRAY",h:"Donkey Pokémon · Ground type · carries surprising loads · #749"},
+  {w:"WOOLOO",h:"Sheep Pokémon · Normal type · soft fleece cushions impacts · #831"},
+  {w:"YAMPER",h:"Puppy Pokémon · Electric type · corgi that chases fast things · #835"},
+  {w:"APPLIN",h:"Apple Core Pokémon · Grass/Dragon · hides inside an apple · #840"},
+  {w:"TOXEL",h:"Baby Pokémon · Electric/Poison · skin leaks poison as a baby · #848"},
+  {w:"SNOM",h:"Worm Pokémon · Ice/Bug type · eats snow and thread · #872"},
+  {w:"DREEPY",h:"Lingering Pokémon · Dragon/Ghost · reincarnated ancient creature · #886"},
+  {w:"KUBFU",h:"Wushu Pokémon · Fighting type · masters one fighting style · #891"},
+  {w:"PAWMI",h:"Mouse Pokémon · Electric type · rubs cheeks to generate power · #921"},
+  {w:"SMOLIV",h:"Olive Pokémon · Grass/Normal · very nervous disposition · #928"},
+  {w:"NACLI",h:"Rock Salt Pokémon · Rock type · crystallised from ancient salt · #932"},
+  {w:"KLAWF",h:"Ambush Pokémon · Rock type · sideways-walking rock crab · #950"},
+  {w:"FIDOUGH",h:"Puppy Pokémon · Fairy type · skin feels like bread dough · #926"},
+  {w:"VAROOM",h:"Single-Cylinder Pokémon · Steel/Poison · engine-like creature · #966"},
+  {w:"SYLVEON",h:"Intertwining Pokémon · Fairy type · Eevee's Fairy evolution · #700"},
+  {w:"ZEKROM",h:"Deep Black Pokémon · Dragon/Electric · Gen 5 Legendary · #644"},
+  {w:"KYUREM",h:"Boundary Pokémon · Dragon/Ice · has incomplete DNA · #646"},
+  {w:"LITLEO",h:"Lion Cub Pokémon · Fire/Normal · small fiery mane · #667"},
+  {w:"INKAY",h:"Revolving Pokémon · Dark/Psychic · flashes lights to confuse · #686"},
+  {w:"AMAURA",h:"Tundra Pokémon · Rock/Ice · revived fossil Pokémon · #698"},
+  {w:"GROOKEY",h:"Chimp Pokémon · Grass type · Gen 8 starter · beats stick on things · #810"},
+  {w:"SOBBLE",h:"Water Lizard Pokémon · Water type · Gen 8 starter · cries easily · #816"},
+  {w:"LECHONK",h:"Hog Pokémon · Normal type · smells strongly of herbs · #915"},
+  {w:"FUECOCO",h:"Fire Croc Pokémon · Fire type · Gen 9 starter · loves peppers · #911"},
+  {w:"QUAXLY",h:"Duckling Pokémon · Water type · Gen 9 starter · always keeps hair neat · #914"},
+  {w:"MEOWTH",h:"Scratch Cat Pokémon · Normal type · Team Rocket's talking cat · #052"},
+  {w:"CARBINK",h:"Jewel Pokémon · Rock/Fairy · born deep underground · #703"},
+  {w:"SWIRLIX",h:"Cotton Candy Pokémon · Fairy type · eats only sweet food · #684"},
+  {w:"WYNAUT",h:"Bright Pokémon · Psychic type · baby Wobbuffet · always smiling · #360"},
+  {w:"HATENNA",h:"Calm Pokémon · Psychic type · flees from emotional people · #856"},
+  {w:"FALINKS",h:"Formation Pokémon · Fighting type · marches in strict formation · #870"},
+  {w:"CUFANT",h:"Copper Derm Pokémon · Steel type · carries heavy things happily · #878"},
+  {w:"ZACIAN",h:"Warrior Pokémon · Fairy/Steel · Gen 8 box Legendary · #888"},
+  {w:"LUNALA",h:"Moone Pokémon · Psychic/Ghost · summons eternal night · #792"},
+  {w:"FLAMIGO",h:"Synchronize Pokémon · Flying/Fighting · pink flamingo · #973"},
+  {w:"SKITTY",h:"Kitten Pokémon · Normal type · chases its own tail endlessly · #300"},
+  {w:"ARON",h:"Iron Armor Pokémon · Steel/Rock · eats iron ore · #304"},
+  {w:"BALTOY",h:"Clay Doll Pokémon · Ground/Psychic · spins on one leg · #343"},
+  {w:"SOLROCK",h:"Meteorite Pokémon · Rock/Psychic · radiates solar heat · #338"},
+  {w:"SPINDA",h:"Spot Panda Pokémon · Normal type · staggers as it walks · #327"},
+  {w:"CACNEA",h:"Cactus Pokémon · Grass type · lives in the desert · #331"},
+  {w:"WIMPOD",h:"Turn Tail Pokémon · Bug/Water · flees from every threat · #767"},
+  {w:"STUFFUL",h:"Flailing Pokémon · Normal/Fighting · deceptively powerful · #759"},
+  {w:"MIMIKYU",h:"Disguise Pokémon · Ghost/Fairy · wears a Pikachu costume · #778"},
+  {w:"AZURILL",h:"Polka Dot Pokémon · Normal/Fairy · baby Marill · bounces on tail · #298"},
+  {w:"COSMOG",h:"Nebula Pokémon · Psychic type · formed from stardust · #789"},
+  {w:"COSMOEM",h:"Protostar Pokémon · Psychic type · evolves into Solgaleo or Lunala · #790"},
+  {w:"JOLTIK",h:"Attaching Pokémon · Bug/Electric · steals static electricity · #595"},
+  {w:"MUNNA",h:"Dream Eater Pokémon · Psychic type · floral markings · #517"},
+  {w:"WOOBAT",h:"Bat Pokémon · Psychic/Flying · heart-shaped nostrils · #527"},
+  {w:"DRILBUR",h:"Mole Pokémon · Ground type · drills through earth · #529"},
+  {w:"GOTHITA",h:"Fixation Pokémon · Psychic type · ribbon-like feelers · #574"},
+  {w:"SOLOSIS",h:"Cell Pokémon · Psychic type · lives inside protective gel · #577"},
+  {w:"FOONGUS",h:"Mushroom Pokémon · Grass/Poison · lures prey with Poké Ball pattern · #590"},
+  {w:"KLINK",h:"Gear Pokémon · Steel type · two interlocked gears · #599"},
+  {w:"RUFFLET",h:"Eaglet Pokémon · Normal/Flying · picks fights with everyone · #627"},
+  {w:"VULLABY",h:"Diapered Pokémon · Dark/Flying · wears a skull as a helmet · #629"},
+  {w:"CHERUBI",h:"Cherry Pokémon · Grass type · has a small round second head · #420"},
+  {w:"MESPRIT",h:"Emotion Pokémon · Psychic type · one of the Lake Guardians · #481"},
+  {w:"SLIGGOO",h:"Soft Tissue Pokémon · Dragon type · evolved form of Goomy · #705"},
+  {w:"KLEFKI",h:"Key Ring Pokémon · Steel/Fairy · obsessively collects keys · #707"},
+  {w:"DIANCIE",h:"Jewel Pokémon · Rock/Fairy · Mythical · born from Carbink · #719"},
+  {w:"PANCHAM",h:"Playful Pokémon · Fighting type · acts tough but is gentle · #674"},
+  {w:"SKIDDO",h:"Mount Pokémon · Grass type · allows others to ride on it · #672"},
+  {w:"FLABEBE",h:"Single Bloom Pokémon · Fairy type · bonds with one flower for life · #669"},
+  {w:"AUDINO",h:"Hearing Pokémon · Normal type · serves as a natural healer · #531"},
+  {w:"TIMBURR",h:"Muscular Pokémon · Fighting type · always carries a wooden beam · #532"},
+  {w:"DRAMPA",h:"Placid Pokémon · Normal/Dragon · very kind to children · #780"},
+  {w:"GLIMMET",h:"Ore Pokémon · Rock/Poison · drifts through dark caverns · #969"},
+  {w:"COMBEE",h:"Tiny Bee Pokémon · Bug/Flying · triple-faced honeybee · #415"},
+];
+const seen=new Set();
+const POOL=RAW.filter(p=>{
+  if(p.w.length!==5)return false;
+  if(seen.has(p.w))return false;
+  seen.add(p.w);return true;
+});
+
+// ══════════════════════════════════════════════
+//  ACCOUNT SYSTEM (localStorage)
+// ══════════════════════════════════════════════
+const DB_KEY='pkWordle_db';
+const SESS_KEY='pkWordle_sess';
+
+const getDB=()=>JSON.parse(localStorage.getItem(DB_KEY)||'{}');
+const saveDB=db=>localStorage.setItem(DB_KEY,JSON.stringify(db));
+const getSession=()=>localStorage.getItem(SESS_KEY);
+const setSession=u=>localStorage.setItem(SESS_KEY,u);
+const clearSession=()=>localStorage.removeItem(SESS_KEY);
+
+const defStats=()=>({played:0,won:0,streak:0,best:0,hardWon:0});
+
+function getStats(){
+  if(!currentUser)return JSON.parse(localStorage.getItem('pkWordle_guest')||JSON.stringify(defStats()));
+  return getDB()[currentUser]?.stats||defStats();
+}
+function saveStats(s){
+  if(!currentUser){localStorage.setItem('pkWordle_guest',JSON.stringify(s));renderStats();return;}
+  const db=getDB();
+  if(db[currentUser])db[currentUser].stats=s;
+  saveDB(db);renderStats();
+}
+
+// Simple (non-cryptographic) password hash — fine for a local game
+function hashPwd(s){let h=0;for(let i=0;i<s.length;i++){h=(Math.imul(31,h)+s.charCodeAt(i))|0;}return h.toString(36);}
+
+let currentUser=null;
+
+function switchTab(t){
+  ['login','signup'].forEach(id=>{
+    document.getElementById('tab-'+id).classList.toggle('active',id===t);
+    document.getElementById(id===t?'login-form':'signup-form').style.display=id===t?'':'none';
+    document.getElementById(id===t?'signup-form':'login-form').style.display=id!==t?'':'none';
+  });
+  document.getElementById('li-err').textContent='';
+  document.getElementById('su-err').textContent='';
+}
+
+function doLogin(){
+  const u=document.getElementById('li-user').value.trim();
+  const p=document.getElementById('li-pass').value;
+  const err=document.getElementById('li-err');
+  if(!u||!p){err.textContent='Please fill in all fields.';return;}
+  const db=getDB();
+  if(!db[u]){err.textContent='No account found — sign up first!';return;}
+  if(db[u].hash!==hashPwd(p)){err.textContent='Wrong password. Try again!';return;}
+  currentUser=u;setSession(u);enterGame();
+}
+
+function doSignup(){
+  const u=document.getElementById('su-user').value.trim();
+  const p=document.getElementById('su-pass').value;
+  const p2=document.getElementById('su-pass2').value;
+  const err=document.getElementById('su-err');
+  if(!u||!p||!p2){err.textContent='Please fill in all fields.';return;}
+  if(u.length<2||u.length>20){err.textContent='Username: 2–20 characters.';return;}
+  if(!/^[a-zA-Z0-9_]+$/.test(u)){err.textContent='Letters, numbers, _ only.';return;}
+  if(p.length<6){err.textContent='Password must be 6+ characters.';return;}
+  if(p!==p2){err.textContent="Passwords don't match!";return;}
+  const db=getDB();
+  if(db[u]){err.textContent='Username taken — try another!';return;}
+  db[u]={hash:hashPwd(p),stats:defStats()};
+  saveDB(db);currentUser=u;setSession(u);enterGame();
+}
+
+function guestPlay(){currentUser=null;clearSession();enterGame();}
+
+function doLogout(){
+  currentUser=null;clearSession();gameOver=true;
+  document.getElementById('auth-screen').classList.remove('hidden');
+  closeModal();
+  // reset form
+  document.getElementById('li-user').value='';
+  document.getElementById('li-pass').value='';
+  document.getElementById('li-err').textContent='';
+  switchTab('login');
+}
+
+function enterGame(){
+  document.getElementById('auth-screen').classList.add('hidden');
+  const n=currentUser||'Guest';
+  document.getElementById('user-name').textContent=n;
+  document.getElementById('user-avatar').textContent=n[0].toUpperCase();
+  newGame();
+}
+
+// enter key on auth inputs
+document.getElementById('li-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+document.getElementById('su-pass2').addEventListener('keydown',e=>{if(e.key==='Enter')doSignup();});
+
+// ══════════════════════════════════════════════
+//  GAME
+// ══════════════════════════════════════════════
+const MAX_GUESSES=6,WORD_LEN=5;
+let target='',targetHint='',currentRow=0,currentCol=0;
+let board=[],letterStates={};
+let gameOver=false,hardMode=false;
+let correctSlots=Array(WORD_LEN).fill(null); // letter required at index
+let requiredLetters=[];                        // letters that must appear
+
+function toggleHard(){
+  if(!gameOver&&currentRow>0){showMsg('Cannot change mid-game!');return;}
+  hardMode=!hardMode;
+  document.getElementById('hard-toggle').classList.toggle('on',hardMode);
+  document.getElementById('hard-badge').classList.toggle('hidden',!hardMode);
+  document.getElementById('hard-rules').classList.toggle('hidden',!hardMode);
+  showMsg(hardMode?'⚡ Hard Mode ON!':'Hard Mode off',2000);
+}
+
+function buildBoard(){
+  const b=document.getElementById('board');b.innerHTML='';board=[];
+  for(let r=0;r<MAX_GUESSES;r++){
+    const row=document.createElement('div');row.className='row';
+    const rt=[];
+    for(let c=0;c<WORD_LEN;c++){
+      const t=document.createElement('div');t.className='tile';row.appendChild(t);rt.push(t);
+    }
+    b.appendChild(row);board.push(rt);
+  }
+}
+
+const KROWS=['QWERTYUIOP','ASDFGHJKL','↵ZXCVBNM⌫'];
+function buildKeyboard(){
+  const kb=document.getElementById('keyboard');kb.innerHTML='';
+  KROWS.forEach(rs=>{
+    const row=document.createElement('div');row.className='key-row';
+    [...rs].forEach(ch=>{
+      const k=document.createElement('button');
+      k.className='key'+(ch==='↵'||ch==='⌫'?' wide':'');
+      k.textContent=ch==='↵'?'ENTER':ch==='⌫'?'DEL':ch;
+      k.dataset.key=ch;
+      k.addEventListener('click',()=>handleKey(ch));
+      row.appendChild(k);
+    });
+    kb.appendChild(row);
+  });
+}
+
+document.addEventListener('keydown',e=>{
+  if(!document.getElementById('auth-screen').classList.contains('hidden'))return;
+  if(gameOver)return;
+  if(e.key==='Enter')handleKey('↵');
+  else if(e.key==='Backspace')handleKey('⌫');
+  else if(/^[a-zA-Z]$/.test(e.key))handleKey(e.key.toUpperCase());
+});
+
+function handleKey(ch){
+  if(gameOver)return;
+  if(ch==='⌫')deleteLetter();
+  else if(ch==='↵')submitGuess();
+  else addLetter(ch);
+}
+function addLetter(ch){
+  if(currentCol>=WORD_LEN)return;
+  board[currentRow][currentCol].textContent=ch;
+  board[currentRow][currentCol].classList.add('filled');
+  currentCol++;
+}
+function deleteLetter(){
+  if(currentCol<=0)return;
+  currentCol--;
+  board[currentRow][currentCol].textContent='';
+  board[currentRow][currentCol].classList.remove('filled');
+}
+
+// Hard mode validation
+function hardCheck(guess){
+  for(let i=0;i<WORD_LEN;i++){
+    if(correctSlots[i]&&guess[i]!==correctSlots[i])
+      return `Pos ${i+1} must be "${correctSlots[i]}"`;
+  }
+  for(const l of requiredLetters){
+    if(!guess.includes(l)) return `Must include "${l}"`;
+  }
+  return null;
+}
+
+function submitGuess(){
+  if(currentCol<WORD_LEN){shakeRow(currentRow);showMsg('Not enough letters!');return;}
+  const guess=board[currentRow].map(t=>t.textContent).join('');
+
+  if(hardMode){
+    const err=hardCheck(guess);
+    if(err){shakeRow(currentRow);showMsg('⚡ '+err);return;}
+  }
+
+  const result=evaluate(guess,target);
+
+  // Update hard constraints
+  result.forEach((s,i)=>{
+    if(s==='correct')correctSlots[i]=guess[i];
+    if(s==='present'&&!requiredLetters.includes(guess[i]))requiredLetters.push(guess[i]);
+  });
+
+  // Animate
+  result.forEach((s,i)=>{
+    const tile=board[currentRow][i];
+    setTimeout(()=>{
+      tile.classList.add('flip');
+      setTimeout(()=>{
+        tile.classList.add(s);
+        tile.classList.remove('flip');
+        if(i===WORD_LEN-1)afterReveal(guess,result);
+      },250);
+    },i*120);
+  });
+
+  // Keyboard
+  result.forEach((s,i)=>{
+    const ch=guess[i],prev=letterStates[ch];
+    if(prev==='correct')return;
+    if(prev==='present'&&s==='absent')return;
+    letterStates[ch]=s;
+  });
+  setTimeout(updateKeyboard,WORD_LEN*120+260);
+}
+
+function evaluate(g,t){
+  const res=Array(WORD_LEN).fill('absent');
+  const ta=[...t],used=Array(WORD_LEN).fill(false);
+  for(let i=0;i<WORD_LEN;i++){if(g[i]===ta[i]){res[i]='correct';used[i]=true;}}
+  for(let i=0;i<WORD_LEN;i++){
+    if(res[i]==='correct')continue;
+    const j=ta.findIndex((c,k)=>!used[k]&&c===g[i]);
+    if(j!==-1){res[i]='present';used[j]=true;}
+  }
+  return res;
+}
+
+function afterReveal(guess,result){
+  const won=result.every(r=>r==='correct');
+  currentRow++;currentCol=0;
+  const s=getStats();
+  if(won){
+    s.played++;s.won++;s.streak++;s.best=Math.max(s.best,s.streak);
+    if(hardMode)s.hardWon++;
+    saveStats(s);gameOver=true;
+    const msgs=['🏆 Caught it!','⚡ Outstanding!','🌟 Pokémaster!','🎯 Got it!','✨ Brilliant!','🔥 Flawless!'];
+    showMsg(msgs[Math.min(currentRow-1,msgs.length-1)]);
+    board[currentRow-1].forEach((t,i)=>setTimeout(()=>t.classList.add('win'),i*80));
+    setTimeout(()=>showModal(true),1400);
+  } else if(currentRow>=MAX_GUESSES){
+    s.played++;s.streak=0;
+    saveStats(s);gameOver=true;
+    showMsg('It was '+target+'...');
+    setTimeout(()=>showModal(false),1200);
+  }
+}
+
+let msgTimer;
+function showMsg(text,dur=2800){
+  const el=document.getElementById('message');el.textContent=text;
+  clearTimeout(msgTimer);
+  if(dur>0)msgTimer=setTimeout(()=>{el.textContent='';},dur);
+}
+function shakeRow(r){board[r].forEach(t=>{t.classList.remove('shake');void t.offsetWidth;t.classList.add('shake');});}
+function updateKeyboard(){
+  document.querySelectorAll('.key').forEach(k=>{
+    const s=letterStates[k.dataset.key];
+    k.classList.remove('correct','present','absent');
+    if(s)k.classList.add(s);
+  });
+}
+function renderStats(){
+  const s=getStats();
+  document.getElementById('s-played').textContent=s.played;
+  document.getElementById('s-won').textContent=s.won;
+  document.getElementById('s-streak').textContent=s.streak;
+  document.getElementById('s-best').textContent=s.best;
+  document.getElementById('s-hard-won').textContent=s.hardWon||0;
+}
+function showModal(won){
+  document.getElementById('modal-icon').textContent=won?'🏆':'😞';
+  document.getElementById('modal-title').textContent=won?'You caught it!':'Better luck next time!';
+  document.getElementById('modal-answer').textContent=target;
+  document.getElementById('modal-desc').textContent=targetHint;
+  const b=document.getElementById('modal-badge');
+  b.textContent=hardMode?'⚡ Hard Mode':'Normal Mode';
+  b.className='mbadge '+(hardMode?'hard':'normal');
+  const s=getStats();
+  const pct=s.played?Math.round(s.won/s.played*100):0;
+  document.getElementById('ms-played').textContent=s.played;
+  document.getElementById('ms-pct').textContent=pct+'%';
+  document.getElementById('ms-streak').textContent=s.streak;
+  document.getElementById('ms-hard').textContent=s.hardWon||0;
+  document.getElementById('modal-overlay').classList.add('show');
+}
+function closeModal(){document.getElementById('modal-overlay').classList.remove('show');}
+
+function newGame(){
+  closeModal();
+  const pick=POOL[Math.floor(Math.random()*POOL.length)];
+  target=pick.w;targetHint=pick.h;
+  document.getElementById('hint-text').textContent=targetHint;
+  currentRow=0;currentCol=0;gameOver=false;letterStates={};
+  correctSlots=Array(WORD_LEN).fill(null);requiredLetters=[];
+  buildBoard();buildKeyboard();showMsg('',0);renderStats();
+}
+
+// ── Init ──────────────────────────────────────────────────────
+(function init(){
+  const sess=getSession();
+  if(sess){const db=getDB();if(db[sess]){currentUser=sess;enterGame();return;}}
+  // else show auth screen
+})();
+</script>
+</body>
+</html>
